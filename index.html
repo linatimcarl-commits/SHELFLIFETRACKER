@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Jollibee Shelf Life Tracker</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #fff5e6;
+      padding: 20px;
+      color: #333;
+    }
+
+    h1 {
+      text-align: center;
+      color: #d21f2b;
+      margin-bottom: 10px;
+    }
+
+    .section {
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+
+    .section summary {
+      font-size: 18px;
+      font-weight: bold;
+      background-color: #ffd600;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .product {
+      padding: 10px;
+      border-top: 1px solid #eee;
+    }
+
+    .product h3 {
+      margin: 0;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+    }
+
+    .product h3 span.icon {
+      margin-right: 8px;
+    }
+
+    input[type="datetime-local"] {
+      margin-top: 5px;
+      display: block;
+      padding: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .result {
+      margin-top: 5px;
+      padding: 8px;
+      border-radius: 5px;
+      font-size: 14px;
+    }
+
+    .expired {
+      background: #ffcccc;
+      color: #a00;
+    }
+
+    .valid {
+      background: #ccffcc;
+      color: #060;
+    }
+
+    .summary {
+      margin-top: 30px;
+      padding: 15px;
+      background: #fffde7;
+      border: 1px solid #eee;
+      border-radius: 6px;
+    }
+
+    .summary h2 {
+      margin-top: 0;
+    }
+
+    #filterInput {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      margin-bottom: 20px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+
+    .clear-btn {
+      background: #d21f2b;
+      color: white;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      float: right;
+      margin-bottom: 10px;
+    }
+
+    .clear-btn:hover {
+      background: #b31521;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .product h3 {
+        font-size: 14px;
+      }
+    }
+
+    /* Dark mode support */
+    body.dark-mode {
+      background: #1e1e1e;
+      color: #f1f1f1;
+    }
+
+    body.dark-mode .section {
+      background-color: #2a2a2a;
+      color: #f1f1f1;
+    }
+
+    body.dark-mode .section summary {
+      background-color: #444;
+      color: #ffd600;
+    }
+
+    body.dark-mode .summary {
+      background: #333;
+      border-color: #555;
+    }
+
+    body.dark-mode .result.valid {
+      background-color: #335533;
+      color: #ccffcc;
+    }
+
+    body.dark-mode .result.expired {
+      background-color: #663333;
+      color: #ffcccc;
+    }
+
+    body.dark-mode input[type="datetime-local"] {
+      background-color: #2e2e2e;
+      color: #f1f1f1;
+      border: 1px solid #666;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🍔 Jollibee Kiko Camarin Shelf Life Tracker</h1>
+
+<!-- 🌙 Dark mode toggle -->
+<div style="text-align: center; margin: 10px 0;">
+  <label>
+    <input type="checkbox" onchange="toggleDarkMode()" />
+    🌙 Enable Dark Mode
+  </label>
+</div>
+
+<!-- 🔍 Search -->
+<input type="text" id="filterInput" placeholder="Search product... (e.g., Butter, Lettuce)" />
+
+<!-- 🥫 Pantry Station -->
+<details open class="section" id="PantrySection">
+  <summary>🥫 Pantry Station</summary>
+  <div id="productsContainer"></div>
+</details>
+
+<!-- 🔥 Grill Station -->
+<details class="section" id="GrillSection">
+  <summary>🔥 Grill Station</summary>
+  <div id="grillContainer"></div>
+</details>
+
+<!-- 🥤 Soda Station -->
+<details class="section" id="SodaSection">
+  <summary>🥤 Soda Station</summary>
+  <div id="sodaContainer"></div>
+</details>
+
+<!-- 📦 Back-up Station -->
+<details class="section" id="BackupSection">
+  <summary>📦 Back-up Station</summary>
+  <div id="backupContainer"></div>
+</details>
+
+<!-- 📋 Shelf Life Summary -->
+<div class="summary" id="summary">
+  <h2>📋 Shelf Life Summary</h2>
+  <button class="clear-btn" onclick="clearSummary()">Clear All Results</button>
+  <ul id="summaryList"></ul>
+</div>
+
+<!-- Scripts -->
+<script>
+  const products = [
+    // Pantry
+    { isLabel: true, label: "🥫 Pantry Station" },
+    { name: "Butter (TUB)", icon: "🧈", rule: "Date Open + 14 days", logic: d => addDays(d, 14) },
+    { name: "Butter (1oz)", icon: "🧈", rule: "Date Processed + 1 day", logic: d => addDays(d, 1) },
+    { name: "Calamansi", icon: "🍋", rule: "Date Transfer + 24 hours", logic: d => addHours(d, 24) },
+    { name: "Chicharon", icon: "🍖", rule: "Date Opened + 24 hours", logic: d => addHours(d, 24) },
+    { name: "Catsup Bulk", icon: "🍅", rule: "Date Opened + 7 days", logic: d => addDays(d, 7) },
+    { name: "Grated Cheese", icon: "🧀", rule: "Date Opened + 24 hours", logic: d => addHours(d, 24) },
+    { name: "Egg Unpeeled", icon: "🥚", rule: "TP + 24 hours", logic: d => addHours(d, 24) },
+    { name: "Egg Peeled", icon: "🥚", rule: "Date Opened + 8 hours", logic: d => addHours(d, 8) },
+
+    // Grill
+    { isLabel: true, label: "🔥 Grill Station" },
+    { name: "Lettuce", icon: "🥬", rule: "Date Transfer + 12 hours", logic: d => addHours(d, 12) },
+    { name: "Tomato", icon: "🍅", rule: "Date Transfer + 12 hours", logic: d => addHours(d, 12) },
+    { name: "SBD FIFO Bottle", icon: "🧴", rule: "Date Transfer + 8 hours", logic: d => addHours(d, 8) },
+    { name: "SBD", icon: "🧴", rule: "Date Opened + 2 days", logic: d => addDays(d, 2) },
+    { name: "APD", icon: "🧴", rule: "Date Opened + 30 days", logic: d => addDays(d, 30) },
+    { name: "HMD", icon: "🧴", rule: "Date Opened + 3 days", logic: d => addDays(d, 3) },
+    { name: "Special Sandwich Dressings", icon: "🥪", rule: "Date Opened + 14 days", logic: d => addDays(d, 14) },
+    { name: "Golden BBQ", icon: "🍖", rule: "Date Opened + 14 days", logic: d => addDays(d, 14) },
+    { name: "Chili Cheese", icon: "🧀", rule: "Date Opened + 14 days", logic: d => addDays(d, 14) },
+    { name: "Barbeque Ketchup", icon: "🍅", rule: "Date Opened + 7 days", logic: d => addDays(d, 7) },
+    { name: "Sriracha", icon: "🌶️", rule: "Date Opened + 30 days", logic: d => addDays(d, 30) },
+    { name: "Prepared Sriracha Mayo", icon: "🌶️", rule: "Date Processed + 7 days", logic: d => addDays(d, 7) },
+    { name: "Sriracha Mayo (8h)", icon: "🌶️", rule: "8 hours before placing at station", logic: d => addHours(d, 8) },
+
+    // Soda
+    { isLabel: true, label: "🥤 Soda Station" },
+    { name: "Sugar Packet", icon: "🥤", rule: "Date Opened + 3 months", logic: d => addDays(d, 90) },
+    { name: "Creamer", icon: "🥛", rule: "See packaging", logic: d => d },
+    { name: "Salt Packet", icon: "🥛", rule: "See packaging", logic: d => d },
+    { name: "CBTL ROAST COFFEE", icon: "☕", rule: "Date Opened + 5 days", logic: d => addDays(d, 5) },
+    { name: "Sugar Syrup", icon: "🥤", rule: "Date Opened + 60 days", logic: d => addHours(d, 60) },
+    { name: "Choco Coating", icon: "🍫", rule: "Date Opened + 30 days ROOM TEMP", logic: d => addDays(d, 30) },
+    { name: "Choco Coating", icon: "🍫", rule: "Date Transfered + 5 days ROOM TEMP", logic: d => addDays(d, 5) },
+    { name: "Choco drink mix", icon: "🧊", rule: "Date Opened + 3 days", logic: d => addDays(d, 3) },
+    { name: "Crushed Oreo", icon: "🧊", rule: "Date Opened + 20 days ROOM TEMP", logic: d => addDays(d, 20) },
+    { name: "Crushed Oreo", icon: "🧊", rule: "Date Transfered + 24 hours ROOM TEMP", logic: h => addDays(h, 24) },
+    { name: "Hot Sauce", icon: "🧊", rule: "Date Opened + 40 Days", logic: d => addDays(d, 40) },
+    { name: "Choco Toppings", icon: "🍫", rule: "Date Opened + 7 Days", logic: d => addDays(d, 7) },
+    { name: "Sugar KG", icon: "🥤", rule: "Date Opened + 90 days", logic: d => addDays(d, 30) },
+    { name: "Choco drink mix", icon: "🥤", rule: "Date Opened + 3 days", logic: d => addDays(d, 3) },
+    { name: "Fresh milk", icon: "🥤", rule: "Date Opened + 5 days", logic: d => addDays(d, 5) },
+    { name: "Sweet Powder", icon: "🥤", rule: "Date Opened + 30 days", logic: d => addDays(d, 30) },
+
+    // Back-up Station
+    { isLabel: true, label: "📦 Back-up Station" },
+    { name: "Soup Base Mix", icon: "🥣", rule: "Date Opened + 3 days", logic: d => addDays(d, 3) },
+    { name: "Tinapa", icon: "🐟", rule: "Date Opened + 5 days", logic: d => addDays(d, 5) },
+    { name: "Mac Noodles", icon: "🍝", rule: "Date Opened + 7 days", logic: d => addDays(d, 7) },
+    { name: "Salt", icon: "🧂", rule: "Date Opened + 7 days", logic: d => addDays(d, 7) },
+    { name: "Rice", icon: "🍚", rule: "See packaging", logic: d => d },
+    { name: "Bihon", icon: "🥢", rule: "See packaging", logic: d => d },
+    { name: "CJoy Gravy", icon: "🫕", rule: "Date Opened + 7 days", logic: d => addDays(d, 7) },
+    { name: "Mashed Potato", icon: "🥔", rule: "Date Opened + 30 days", logic: d => addDays(d, 30) }
+  ];
+
+  const productsContainer = document.getElementById('productsContainer');
+  const grillContainer = document.getElementById('grillContainer');
+  const sodaContainer = document.getElementById('sodaContainer');
+  const backupContainer = document.getElementById('backupContainer');
+  const summaryList = document.getElementById('summaryList');
+
+  function addDays(date, days) {
+    const result = new Date(date);
+    result.setDate(result.getDate() + days);
+    return result;
+  }
+
+  function addHours(date, hours) {
+    const result = new Date(date);
+    result.setHours(result.getHours() + hours);
+    return result;
+  }
+
+  function formatDateTime(dt) {
+    return dt.toLocaleString();
+  }
+
+  function createProduct(product) {
+    const id = product.name.replace(/\s+/g, '-').toLowerCase();
+    const div = document.createElement('div');
+    div.className = 'product';
+    div.id = id;
+
+    div.innerHTML = `
+      <h3><span class="icon">${product.icon}</span>${product.name}</h3>
+      <small>${product.rule}</small>
+      <input type="datetime-local" onchange="calculateShelfLife(this, '${product.name}', '${product.icon}', ${products.indexOf(product)})" />
+      <div class="result" id="result-${products.indexOf(product)}"></div>
+    `;
+
+    return div;
+  }
+
+  function calculateShelfLife(input, name, icon, index) {
+    const resultDiv = document.getElementById(`result-${index}`);
+    const inputDate = new Date(input.value);
+    if (isNaN(inputDate)) return;
+
+    const endDate = products[index].logic(inputDate);
+    const now = new Date();
+
+    const expired = endDate < now;
+    resultDiv.className = 'result ' + (expired ? 'expired' : 'valid');
+    resultDiv.textContent = (expired ? "⚠️ Expired on: " : "✅ Valid until: ") + formatDateTime(endDate);
+
+    const li = document.createElement('li');
+    li.textContent = `${icon} ${name} → ${formatDateTime(endDate)} ${expired ? "(Expired)" : ""}`;
+    summaryList.appendChild(li);
+  }
+
+  function clearSummary() {
+    summaryList.innerHTML = '';
+    document.querySelectorAll('.result').forEach(r => r.innerHTML = '');
+  }
+
+  products.forEach(product => {
+    if (!product.name) return;
+    const element = createProduct(product);
+    const idx = products.indexOf(product);
+    const isGrill = idx > products.findIndex(p => p.label === "🔥 Grill Station") &&
+                    idx < products.findIndex(p => p.label === "🥤 Soda Station");
+    const isSoda = idx > products.findIndex(p => p.label === "🥤 Soda Station") &&
+                   idx < products.findIndex(p => p.label === "📦 Back-up Station");
+    const isBackup = idx > products.findIndex(p => p.label === "📦 Back-up Station");
+
+    if (isBackup) backupContainer.appendChild(element);
+    else if (isSoda) sodaContainer.appendChild(element);
+    else if (isGrill) grillContainer.appendChild(element);
+    else productsContainer.appendChild(element);
+  });
+
+  document.getElementById('filterInput').addEventListener('input', function () {
+    const query = this.value.toLowerCase();
+
+    let pantryVisible = false;
+    let grillVisible = false;
+    let sodaVisible = false;
+    let backupVisible = false;
+
+    products.forEach(product => {
+      if (!product.name) return;
+      const id = product.name.replace(/\s+/g, '-').toLowerCase();
+      const el = document.getElementById(id);
+      if (product.name.toLowerCase().includes(query)) {
+        el.classList.remove('hidden');
+        const idx = products.indexOf(product);
+        const isGrill = idx > products.findIndex(p => p.label === "🔥 Grill Station") &&
+                        idx < products.findIndex(p => p.label === "🥤 Soda Station");
+        const isSoda = idx > products.findIndex(p => p.label === "🥤 Soda Station") &&
+                       idx < products.findIndex(p => p.label === "📦 Back-up Station");
+        const isBackup = idx > products.findIndex(p => p.label === "📦 Back-up Station");
+        if (isGrill) grillVisible = true;
+        else if (isSoda) sodaVisible = true;
+        else if (isBackup) backupVisible = true;
+        else pantryVisible = true;
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+
+    document.getElementById("PantrySection").open = pantryVisible;
+    document.getElementById("GrillSection").open = grillVisible;
+    document.getElementById("SodaSection").open = sodaVisible;
+    document.getElementById("BackupSection").open = backupVisible;
+  });
+
+  function toggleDarkMode() {
+    document.body.classList.toggle('dark-mode');
+  }
+</script>
+
+</body>
+</html>
